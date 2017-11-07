@@ -1,0 +1,2 @@
+socat -s -d -d -d -d pty,link=vcoms/virtualcom0,raw,ignoreeof  tcp:127.0.0.1:9999,ignoreeof
+
