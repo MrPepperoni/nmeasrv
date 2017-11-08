@@ -8,22 +8,51 @@ import threading
 import time
 import datetime
 from functools import reduce
+from geopy.geocoders import Nominatim
 
 
-startutc = datetime.datetime(2017,2,17,9,43,27,320000)
-print(startutc)
+startutc = datetime.datetime(2018,3,4,9,43,27,320000)
+delta = datetime.timedelta()
+location = 'Tehran, Iran'
+
+geolocator = Nominatim()
+geoloc = geolocator.geocode(location)
+
+def degrees(loc):
+    return int(("%f" % abs(loc)).split('.')[0])
+
+def minutes(loc):
+    l = abs(loc)
+    d = degrees(loc)
+    r = l - d
+    return r * 60.0
+
+def lat(gc):
+    # N: + S: -
+    loc = gc.latitude
+    return "%02d%02.4f,%s" % (degrees(loc), minutes(loc), (loc < 0 and 'S' or 'N'))
+
+def lon(gc):
+    # E: + W: -
+    loc = gc.longitude
+    return "%03d%02.4f,%s" % (degrees(loc), minutes(loc), (loc < 0 and 'W' or 'E'))
+
+def curtime():
+    return startutc + delta
 
 def timestr():
-    return '094327.32'
+    t = curtime()
+    return '%02i%02i%02i.%02i' % (t.hour, t.minute, t.second, t.microsecond // 10000)
 
 def datestr():
-    return '170217'
+    t = curtime()
+    return '%02i%02i%02i' % (t.year % 100, t.month, t.day)
 
 def posstr():
-    return '4851.4573,N,00218.0124,E'
+    return '%s,%s' % (lat(geoloc), lon(geoloc))
 
 def speedstr():
-    return '027.0,134.6'
+    return '000.0,000.0'
 
 class nmea:
     content = ''
@@ -32,7 +61,7 @@ class nmea:
     def checksum(self):
         return "%0.2X" % reduce(lambda x,y:operator.xor(x,y), map(ord, self.contents()))
     def tostring(self):
-        return '$' + self.contents() + '*' + str(self.checksum()) + '\n'
+        return '$' + self.contents() + '*' + str(self.checksum()) + '\r\n'
     def contents(self):
         return self.content
 
@@ -49,18 +78,12 @@ class rmc_sentence(nmea):
         return 'GPRMC,' + timestr() + ',A,' + posstr() + ',' + speedstr() + ',' + datestr() + ',003.1,W,A'
 
 
-gga = gga_sentence()
-print(gga.tostring())
-rmc = rmc_sentence()
-print(rmc.tostring())
-
-static_sentences = [ nmea('GPGSA,A,3,01,02,03,04,05,06,,,,,,,001.0,001.0,001.0'),
+sentences = [ gga_sentence(),
+        nmea('GPGSA,A,3,01,02,03,04,05,06,,,,,,,001.0,001.0,001.0'),
         nmea('GPGSV,3,1,12,01,59,041,020,02,50,047,009,03,39,292,027,04,67,259,007'),
         nmea('GPGSV,3,2,12,05,67,099,006,06,49,103,029,07,40,015,018,08,02,187,012'),
-        nmea('GPGSV,3,3,12,09,00,353,017,10,44,147,001,11,88,011,012,12,57,193,024') ]
-
-for s in static_sentences:
-    print(s.tostring())
+        nmea('GPGSV,3,3,12,09,00,353,017,10,44,147,001,11,88,011,012,12,57,193,024'),
+        rmc_sentence() ]
 
 
 class Server(asyncore.dispatcher):
@@ -92,31 +115,40 @@ class SenderThread(threading.Thread):
         self._stop = True
 
     def run(self):
+        zero = datetime.datetime.now()
         while self._stop == False:
-            self.client.enqueueData("data_thread")
+            global delta
+            delta = datetime.datetime.now() - zero
+            for s in sentences:
+                self.client.enqueueData(s.tostring())
             time.sleep(1)
 
 class ClientHandler(asyncore.dispatcher):
     def __init__(self, sock, address):
         asyncore.dispatcher.__init__(self, sock)
+        self.m = threading.Lock()
         self.logger = logging.getLogger('Client ' + str(address))
         self.data_to_write = []
         self.t = SenderThread(self)
         self.t.start()
 
     def enqueueData(self, data):
+        self.m.acquire()
         self.data_to_write.append(data.encode())
+        self.m.release()
 
     def writable(self):
         return bool(self.data_to_write)
 
     def handle_write(self):
-        data = self.data_to_write.pop()
-        sent = self.send(data[:1024])
-        if sent < len(data):
-            remaining = data[sent:]
-            self.data.to_write.append(remaining)
-        self.logger.debug('handle_write() -> (%d) "%s"', sent, data[:sent].rstrip())
+        self.m.acquire()
+        while self.writable():
+            data = self.data_to_write.pop(0)
+            self.logger.debug('handle_write() -> "%s"', data.rstrip())
+            while len(data) > 0:
+                sent = self.send(data[:1024])
+                data = data[sent:]
+        self.m.release()
 
     def handle_read(self):
         data = self.recv(1024)
