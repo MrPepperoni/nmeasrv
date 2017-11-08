@@ -13,10 +13,12 @@ from geopy.geocoders import Nominatim
 
 startutc = datetime.datetime(2018,3,4,9,43,27,320000)
 delta = datetime.timedelta()
-location = 'Tehran, Iran'
+location = 'Budapest, Hungary'
 
 geolocator = Nominatim()
 geoloc = geolocator.geocode(location)
+if not geoloc:
+    raise ValueError('Requested location not found')
 
 def degrees(loc):
     return int(("%f" % abs(loc)).split('.')[0])
@@ -30,12 +32,12 @@ def minutes(loc):
 def lat(gc):
     # N: + S: -
     loc = gc.latitude
-    return "%02d%02.4f,%s" % (degrees(loc), minutes(loc), (loc < 0 and 'S' or 'N'))
+    return "%02d%07.4f,%s" % (degrees(loc), minutes(loc), (loc < 0 and 'S' or 'N'))
 
 def lon(gc):
     # E: + W: -
     loc = gc.longitude
-    return "%03d%02.4f,%s" % (degrees(loc), minutes(loc), (loc < 0 and 'W' or 'E'))
+    return "%03d%07.4f,%s" % (degrees(loc), minutes(loc), (loc < 0 and 'W' or 'E'))
 
 def curtime():
     return startutc + delta
