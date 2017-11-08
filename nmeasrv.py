@@ -4,21 +4,54 @@ import logging
 import asyncore
 import socket
 import operator
+import threading
+import time
+import datetime
 from functools import reduce
 
+
+startutc = datetime.datetime(2017,2,17,9,43,27,320000)
+print(startutc)
+
+def timestr():
+    return '094327.32'
+
+def datestr():
+    return '170217'
+
+def posstr():
+    return '4851.4573,N,00218.0124,E'
+
+def speedstr():
+    return '027.0,134.6'
+
 class nmea:
-    contents = ''
+    content = ''
     def __init__(self, conts):
-        self.contents = conts
+        self.content = conts
     def checksum(self):
-        return "%0.2X" % reduce(lambda x,y:operator.xor(x,y), map(ord, self.contents))
+        return "%0.2X" % reduce(lambda x,y:operator.xor(x,y), map(ord, self.contents()))
     def tostring(self):
-        return '$' + self.contents + '*' + str(self.checksum())
+        return '$' + self.contents() + '*' + str(self.checksum()) + '\n'
+    def contents(self):
+        return self.content
+
+class gga_sentence(nmea):
+    def __init__(self):
+        super(gga_sentence,self).__init__('')
+    def contents(self):
+        return 'GPGGA,' + timestr() + ',' + posstr() + ',1,12,01.0,0.0,M,43.857,M,,'
+
+class rmc_sentence(nmea):
+    def __init__(self):
+        super(rmc_sentence,self).__init__('')
+    def contents(self):
+        return 'GPRMC,' + timestr() + ',A,' + posstr() + ',' + speedstr() + ',' + datestr() + ',003.1,W,A'
 
 
-gga = nmea('GPGGA,094327.32,4851.4573,N,00218.0124,E,1,12,01.0,0.0,M,43.857,M,,')
+gga = gga_sentence()
 print(gga.tostring())
-rmc = nmea('GPRMC,094327.32,A,4851.4573,N,00218.0124,E,027.0,134.6,170217,003.1,W,A')
+rmc = rmc_sentence()
 print(rmc.tostring())
 
 static_sentences = [ nmea('GPGSA,A,3,01,02,03,04,05,06,,,,,,,001.0,001.0,001.0'),
@@ -28,7 +61,6 @@ static_sentences = [ nmea('GPGSA,A,3,01,02,03,04,05,06,,,,,,,001.0,001.0,001.0')
 
 for s in static_sentences:
     print(s.tostring())
-
 
 
 class Server(asyncore.dispatcher):
@@ -48,13 +80,32 @@ class Server(asyncore.dispatcher):
         if client_info is not None:
             self.logger.debug('handle_accept() -> %s', client_info[1])
             ClientHandler(client_info[0], client_info[1])
-    
+
+class SenderThread(threading.Thread):
+    _stop = False
+
+    def __init__(self, client):
+        super(SenderThread,self).__init__()
+        self.client = client
+
+    def stop(self):
+        self._stop = True
+
+    def run(self):
+        while self._stop == False:
+            self.client.enqueueData("data_thread")
+            time.sleep(1)
 
 class ClientHandler(asyncore.dispatcher):
     def __init__(self, sock, address):
         asyncore.dispatcher.__init__(self, sock)
         self.logger = logging.getLogger('Client ' + str(address))
         self.data_to_write = []
+        self.t = SenderThread(self)
+        self.t.start()
+
+    def enqueueData(self, data):
+        self.data_to_write.append(data.encode())
 
     def writable(self):
         return bool(self.data_to_write)
@@ -70,11 +121,12 @@ class ClientHandler(asyncore.dispatcher):
     def handle_read(self):
         data = self.recv(1024)
         self.logger.debug('handle_read() -> (%d) "%s"', len(data), data.rstrip())
-        # !!!!! EAXAMPLE - ECHO
-        self.data_to_write.insert(0, data)
+        # !!!!! EXAMPLE - ECHO
+        # self.data_to_write.insert(0, data)
     
     def handle_close(self):
         self.logger.debug('handle_close()')
+        self.t.stop()
         self.close()
 
 def main():
@@ -82,7 +134,7 @@ def main():
     HOST = '0.0.0.0'
     PORT = 9999
     s = Server((HOST,PORT))
-    asyncore.loop()
+    asyncore.loop(1)
 
 
 if __name__ == '__main__':
