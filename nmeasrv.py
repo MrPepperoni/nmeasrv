@@ -187,7 +187,11 @@ class TestCaseHandler(threading.Thread):
 
     def run(self):
         for l in self.infile.readlines():
+            if len(l) == 0 or l[0] == '#':
+                continue
             parts = l.split('@')
+            if len(parts) < 2:
+                continue
             if not switch_to(parts[0],parts[1]):
                 continue
             for i in range(5 * 60):

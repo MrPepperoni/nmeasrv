@@ -1,2 +1,12 @@
+#
+# this file contains test cases for timezone testing
+# if a line starts with a '#', it is considered a comment
+# all other lines must follow the
+#	YYYY-MM-DD hh:mm:ss.fffff @ Location
+# pattern, where Location is the name of a location in the OpenStreetMap database
+# e.g.
+#	2013-09-28 20:30:55.78200 @ Budapest, Hungary
+#
+
 2013-09-28 20:30:55.78200 @ Budapest, Hungary
 2015-05-15 12:33:23.66700 @ Paris, France
