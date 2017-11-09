@@ -194,6 +194,8 @@ class TestCaseHandler(threading.Thread):
                 if self._stop:
                     return
                 time.sleep(1)  # wait 5 minutes
+        logger = logging.getLogger('TC')
+        logger.info('test case handler finished')
 
 
 
@@ -212,7 +214,7 @@ def main():
     host = '0.0.0.0'
     s = Server((host,args.port))
     t = TestCaseHandler(args.infile)
-    t.run()
+    t.start()
     asyncore.loop(1)
     t.stop()
 
