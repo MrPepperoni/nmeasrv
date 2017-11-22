@@ -8,5 +8,24 @@
 #	2013-09-28 20:30:55.78200 @ Budapest, Hungary
 #
 
-2013-09-28 20:30:55.78200 @ Budapest, Hungary
+# close to border, dst active
+2015-05-15 12:33:23.66700 @ Badajoz, Spain
+# close to border, dst inactive
+2017-01-15 12:33:23.66700 @ Badajoz, Spain
+# away from border, dst active
+2015-05-15 12:33:23.66700 @ Salamanca, Spain
+# dst active
+2015-05-15 12:33:23.66700 @ Lisbon, Portugal
+# dst inactive
+2015-01-15 12:33:23.66700 @ Lisbon, Portugal
+# dst active
 2015-05-15 12:33:23.66700 @ Paris, France
+# dst active
+2017-07-15 12:00:00.00000 @ London, United Kingdom
+# dst active
+2013-09-28 20:30:55.78200 @ Budapest, Hungary
+# dst change 2->1
+2017-10-29 00:59:00.00000 @ London, United Kingdom
+# dst change 1->2
+2018-03-25 00:59:00.00000 @ London, United Kingdom
+

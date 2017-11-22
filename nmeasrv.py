@@ -63,7 +63,7 @@ def timestr():
 
 def datestr():
     t = curtime()
-    return '%02i%02i%02i' % (t.year % 100, t.month, t.day)
+    return '%02i%02i%02i' % (t.day, t.month, t.year % 100)
 
 def posstr():
     return '%s,%s' % (lat(geoloc), lon(geoloc))
@@ -194,10 +194,10 @@ class TestCaseHandler(threading.Thread):
                 continue
             if not switch_to(parts[0],parts[1]):
                 continue
-            for i in range(5 * 60):
+            for i in range(2 * 60):
                 if self._stop:
                     return
-                time.sleep(1)  # wait 5 minutes
+                time.sleep(1)  # wait 2 minutes
         logger = logging.getLogger('TC')
         logger.info('test case handler finished')
 
